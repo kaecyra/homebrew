@@ -24,7 +24,7 @@ class Nginx < Formula
     [
       ['--with-passenger', "Compile with support for Phusion Passenger module"],
       ['--with-webdav',    "Compile with support for WebDAV module"],
-      ['--with-headers',   "Compile with support for Headers More module"],
+      ['--with-headers',   "Compile with support for Headers More module"]
   end
 
   def passenger_config_args
