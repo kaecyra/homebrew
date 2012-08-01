@@ -22,8 +22,8 @@ class Nginx < Formula
   def options
     [
       ['--with-passenger', "Compile with support for Phusion Passenger module"],
-      ['--with-webdav',    "Compile with support for WebDAV module"]
-    ]
+      ['--with-webdav',    "Compile with support for WebDAV module"],
+      ['--with-headers',   "Compile with support for Headers More module"],
   end
 
   def passenger_config_args
@@ -52,6 +52,7 @@ class Nginx < Formula
 
     args << passenger_config_args if ARGV.include? '--with-passenger'
     args << "--with-http_dav_module" if ARGV.include? '--with-webdav'
+    args << "--add-module=~/nginx/headers_more_module" if ARGV.include? '--with-headers'
 
     system "./configure", *args
     system "make"
@@ -87,7 +88,7 @@ class Nginx < Formula
 <plist version="1.0">
   <dict>
     <key>Label</key>
-    <string>#{plist_name}</string>
+    <string>nginx</string>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
