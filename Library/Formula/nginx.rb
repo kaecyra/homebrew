@@ -24,7 +24,8 @@ class Nginx < Formula
     [
       ['--with-passenger', "Compile with support for Phusion Passenger module"],
       ['--with-webdav',    "Compile with support for WebDAV module"],
-      ['--with-headers',   "Compile with support for Headers More module"]
+      ['--with-headers',   "Compile with support for Headers More module"],
+      ['--with-status',    "Compile with support for Stub Status module"],
     ]
   end
 
@@ -54,6 +55,7 @@ class Nginx < Formula
 
     args << passenger_config_args if ARGV.include? '--with-passenger'
     args << "--with-http_dav_module" if ARGV.include? '--with-webdav'
+    args << "--with-http_stub_status_module" if ARGV.include? '--with-status'
     args << "--add-module=#{HOMEBREW_PREFIX}/Cellar/nginxheadersmore/0.17" if ARGV.include? '--with-headers'
 
     system "./configure", *args
