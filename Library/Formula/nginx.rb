@@ -53,12 +53,7 @@ class Nginx < Formula
 
     args << passenger_config_args if ARGV.include? '--with-passenger'
     args << "--with-http_dav_module" if ARGV.include? '--with-webdav'
-    args << "--add-module=#{prefix}/modules/headers_more_module" if ARGV.include? '--with-headers'
-
-    if ARGV.include? '--with-headers'
-       headers_more_root = "#{HOMEBREW_PREFIX}/Cellar/nginxheadersmore/0.17"
-       args << "--add-module=#{headers_more_root}"
-    end
+    args << "--add-module=#{HOMEBREW_PREFIX}/Cellar/nginxheadersmore/0.17" if ARGV.include? '--with-headers'
 
     system "./configure", *args
     system "make"
