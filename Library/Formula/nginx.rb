@@ -57,7 +57,7 @@ class Nginx < Formula
     args << "--with-http_dav_module" if ARGV.include? '--with-webdav'
     args << "--with-http_stub_status_module" if ARGV.include? '--with-status'
     args << "--add-module=#{HOMEBREW_PREFIX}/Cellar/nginxheadersmore/0.17" if ARGV.include? '--with-headers'
-
+    
     system "./configure", *args
     system "make"
     system "make install"
