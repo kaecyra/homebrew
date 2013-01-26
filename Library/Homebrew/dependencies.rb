@@ -1,4 +1,4 @@
-require 'set'
+require 'build_environment'
 
 ## This file defines dependencies and requirements.
 ##
@@ -16,14 +16,14 @@ require 'set'
 class DependencyCollector
   # Define the languages that we can handle as external dependencies.
   LANGUAGE_MODULES = [
-    :chicken, :jruby, :lua, :node, :perl, :python, :rbx, :ruby
+    :chicken, :jruby, :lua, :node, :ocaml, :perl, :python, :rbx, :ruby
   ].freeze
 
-  attr_reader :deps, :external_deps
+  attr_reader :deps, :requirements
 
   def initialize
     @deps = Dependencies.new
-    @external_deps = Set.new
+    @requirements = ComparableSet.new
   end
 
   def add spec
@@ -35,7 +35,7 @@ class DependencyCollector
     # dependency needed for the current platform.
     return if dep.nil?
     # Add dep to the correct bucket
-    (dep.is_a?(Requirement) ? @external_deps : @deps) << dep
+    (dep.is_a?(Requirement) ? @requirements : @deps) << dep
   end
 
 private
@@ -54,6 +54,12 @@ private
       Dependency.new(spec.name, tag)
     when Dependency, Requirement
       spec
+    when Class
+      if spec < Requirement
+        spec.new
+      else
+        raise "#{spec} is not a Requirement subclass"
+      end
     else
       raise "Unsupported type #{spec.class} for #{spec}"
     end
@@ -63,9 +69,25 @@ private
     case spec
     when :autoconf, :automake, :bsdmake, :libtool
       # Xcode no longer provides autotools or some other build tools
-      Dependency.new(spec.to_s) unless MacOS::Xcode.provides_autotools?
-    when :x11, :libpng
+      Dependency.new(spec.to_s, tag) unless MacOS::Xcode.provides_autotools?
+    when :libpng, :freetype, :pixman, :fontconfig, :cairo
+      if MacOS.version >= :mountain_lion
+        Dependency.new(spec.to_s, tag)
+      else
+        X11Dependency.new(tag)
+      end
+    when :x11
       X11Dependency.new(tag)
+    when :xcode
+      XcodeDependency.new(tag)
+    when :mysql
+      MysqlInstalled.new(tag)
+    when :postgresql
+      PostgresqlInstalled.new(tag)
+    when :tex
+      TeXInstalled.new(tag)
+    when :clt
+      CLTDependency.new(tag)
     else
       raise "Unsupported special dependency #{spec}"
     end
@@ -73,237 +95,235 @@ private
 
 end
 
+class Dependencies
+  include Enumerable
 
-# A list of formula dependencies.
-class Dependencies < Array
-  def include? dependency_name
-    self.any?{|d| d.name == dependency_name}
+  def initialize(*args)
+    @deps = Array.new(*args)
+  end
+
+  def each(*args, &block)
+    @deps.each(*args, &block)
+  end
+
+  def <<(o)
+    @deps << o unless @deps.include? o
+    self
+  end
+
+  def empty?
+    @deps.empty?
+  end
+
+  def *(arg)
+    @deps * arg
+  end
+
+  def to_a
+    @deps
+  end
+  alias_method :to_ary, :to_a
+end
+
+module Dependable
+  RESERVED_TAGS = [:build, :optional, :recommended]
+
+  def build?
+    tags.include? :build
+  end
+
+  def optional?
+    tags.include? :optional
+  end
+
+  def recommended?
+    tags.include? :recommended
+  end
+
+  def options
+    Options.coerce(tags - RESERVED_TAGS)
   end
 end
 
 
 # A dependency on another Homebrew formula.
 class Dependency
+  include Dependable
+
   attr_reader :name, :tags
 
-  def initialize name, tags=nil
+  def initialize(name, *tags)
     @name = name
-    @tags = case tags
-      when Array then tags.each {|s| s.to_s}
-      when nil then []
-      else [tags.to_s]
-    end
+    @tags = tags.flatten.compact
   end
 
   def to_s
-    @name
+    name
   end
 
-  def ==(other_dep)
-    @name == other_dep.to_s
+  def ==(other)
+    name == other.name
   end
 
-  def <=>(other_dep)
-    @name <=> other_dep.to_s
+  def eql?(other)
+    other.is_a?(self.class) && hash == other.hash
   end
 
-  def options
-    @tags.select{|p|p.start_with? '--'}
+  def hash
+    name.hash
+  end
+
+  def to_formula
+    f = Formula.factory(name)
+    # Add this dependency's options to the formula's build args
+    f.build.args = f.build.args.concat(options)
+    f
+  end
+
+  def installed?
+    to_formula.installed?
+  end
+
+  def requested?
+    ARGV.formulae.include?(to_formula) rescue false
+  end
+
+  def universal!
+    tags << 'universal' if to_formula.build.has_option? 'universal'
+  end
+
+  # Expand the dependencies of f recursively, optionally yielding
+  # [f, dep] to allow callers to apply arbitrary filters to the list.
+  # The default filter, which is used when a block is not supplied,
+  # omits optionals and recommendeds based on what the dependent has
+  # asked for.
+  def self.expand(dependent, &block)
+    dependent.deps.map do |dep|
+      prune = catch(:prune) do
+        if block_given?
+          yield dependent, dep
+        elsif dep.optional? || dep.recommended?
+          Dependency.prune unless dependent.build.with?(dep.name)
+        end
+      end
+
+      next if prune
+
+      expand(dep.to_formula, &block) << dep
+    end.flatten.compact.uniq
+  end
+
+  # Used to prune dependencies when calling expand_dependencies with a block.
+  def self.prune
+    throw(:prune, true)
   end
 end
-
 
 # A base class for non-formula requirements needed by formulae.
 # A "fatal" requirement is one that will fail the build if it is not present.
 # By default, Requirements are non-fatal.
 class Requirement
-  def satisfied?; false; end
-  def fatal?; false; end
-  def message; ""; end
-  def modify_build_environment; nil end
+  include Dependable
+  extend BuildEnvironmentDSL
+
+  attr_reader :tags
+
+  def initialize(*tags)
+    @tags = tags.flatten.compact
+    @tags << :build if self.class.build
+  end
+
+  # The message to show when the requirement is not met.
+  def message; "" end
+
+  # Overriding #satisfied? is deprepcated.
+  # Pass a block or boolean to the satisfied DSL method instead.
+  def satisfied?
+    result = self.class.satisfy.yielder do |proc|
+      instance_eval(&proc)
+    end
+
+    infer_env_modification(result)
+    !!result
+  end
+
+  # Overriding #fatal? is deprecated.
+  # Pass a boolean to the fatal DSL method instead.
+  def fatal?
+    self.class.fatal || false
+  end
+
+  # Overriding #modify_build_environment is deprecated.
+  # Pass a block to the the env DSL method instead.
+  def modify_build_environment
+    satisfied? and env.modify_build_environment(self)
+  end
+
+  def env
+    @env ||= self.class.env
+  end
 
   def eql?(other)
-    other.is_a? self.class and hash == other.hash
+    other.is_a?(self.class) && hash == other.hash
   end
 
   def hash
-    @message.hash
-  end
-end
-
-
-# A dependency on a language-specific module.
-class LanguageModuleDependency < Requirement
-  def initialize language, module_name, import_name=nil
-    @language = language
-    @module_name = module_name
-    @import_name = import_name || module_name
+    message.hash
   end
 
-  def fatal?; true; end
+  private
 
-  def satisfied?
-    quiet_system(*the_test)
-  end
-
-  def message; <<-EOS.undent
-    Unsatisfied dependency: #{@module_name}
-    Homebrew does not provide #{@language.to_s.capitalize} dependencies; install with:
-      #{command_line} #{@module_name}
-    EOS
-  end
-
-  def the_test
-    case @language
-      when :chicken then %W{/usr/bin/env csi -e (use #{@import_name})}
-      when :jruby then %W{/usr/bin/env jruby -rubygems -e require\ '#{@import_name}'}
-      when :lua then %W{/usr/bin/env luarocks show #{@import_name}}
-      when :node then %W{/usr/bin/env node -e require('#{@import_name}');}
-      when :perl then %W{/usr/bin/env perl -e use\ #{@import_name}}
-      when :python then %W{/usr/bin/env python -c import\ #{@import_name}}
-      when :ruby then %W{/usr/bin/env ruby -rubygems -e require\ '#{@import_name}'}
-      when :rbx then %W{/usr/bin/env rbx -rubygems -e require\ '#{@import_name}'}
-    end
-  end
-
-  def command_line
-    case @language
-      when :chicken then "chicken-install"
-      when :jruby   then "jruby -S gem install"
-      when :lua     then "luarocks install"
-      when :node    then "npm install"
-      when :perl    then "cpan -i"
-      when :python  then "easy_install"
-      when :rbx     then "rbx gem install"
-      when :ruby    then "gem install"
-    end
-  end
-end
-
-class X11Dependency < Requirement
-
-  def initialize min_version=nil
-    @min_version = min_version
-  end
-
-  def fatal?; true; end
-
-  def satisfied?
-    MacOS::XQuartz.installed? and (@min_version.nil? or @min_version <= MacOS::XQuartz.version)
-  end
-
-  def message; <<-EOS.undent
-    Unsatisfied dependency: XQuartz #{@min_version}
-    Please install the latest version of XQuartz:
-      https://xquartz.macosforge.org
-    EOS
-  end
-
-  def modify_build_environment
-    ENV.x11
-  end
-
-end
-
-
-class MPIDependency < Requirement
-
-  attr_reader :lang_list
-
-  def initialize *lang_list
-    @lang_list = lang_list
-    @non_functional = []
-    @unknown_langs = []
-  end
-
-  def fatal?; true; end
-
-  def mpi_wrapper_works? compiler
-    compiler = which compiler
-    return false if compiler.nil? or not compiler.executable?
-
-    # Some wrappers are non-functional and will return a non-zero exit code
-    # when invoked for version info.
-    #
-    # NOTE: A better test may be to do a small test compilation a la autotools.
-    quiet_system compiler, '--version'
-  end
-
-  def satisfied?
-    @lang_list.each do |lang|
-      case lang
-      when :cc, :cxx, :f90, :f77
-        compiler = 'mpi' + lang.to_s
-        @non_functional << compiler unless mpi_wrapper_works? compiler
-      else
-        @unknown_langs << lang.to_s
+  def infer_env_modification(o)
+    case o
+    when Pathname
+      self.class.env do
+        unless ENV["PATH"].split(":").include?(o.parent.to_s)
+          append("PATH", o.parent, ":")
+        end
       end
     end
-
-    @unknown_langs.empty? and @non_functional.empty?
   end
 
-  def modify_build_environment
-    # Set environment variables to help configure scripts find MPI compilers.
-    # Variable names taken from:
-    #
-    #   http://www.gnu.org/software/autoconf-archive/ax_mpi.html
-    lang_list.each do |lang|
-      compiler = 'mpi' + lang.to_s
-      mpi_path = which compiler
+  class << self
+    def fatal(val=nil)
+      val.nil? ? @fatal : @fatal = val
+    end
 
-      # Fortran 90 environment var has a different name
-      compiler = 'MPIFC' if lang == :f90
-      ENV[compiler.upcase] = mpi_path
+    def build(val=nil)
+      val.nil? ? @build : @build = val
+    end
+
+    def satisfy(options={}, &block)
+      @satisfied ||= Requirement::Satisfier.new(options, &block)
     end
   end
 
-  def message
-    if not @unknown_langs.empty?
-      <<-EOS.undent
-        There is no MPI compiler wrapper for:
+  class Satisfier
+    def initialize(options={}, &block)
+      case options
+      when Hash
+        @options = { :build_env => true }
+        @options.merge!(options)
+      else
+        @satisfied = options
+      end
+      @proc = block
+    end
 
-            #{@unknown_langs.join ', '}
-
-        The following values are valid arguments to `MPIDependency.new`:
-
-            :cc, :cxx, :f90, :f77
-        EOS
-    else
-      <<-EOS.undent
-        Homebrew could not locate working copies of the following MPI compiler
-        wrappers:
-
-            #{@non_functional.join ', '}
-
-        If you have a MPI installation, please ensure the bin folder is on your
-        PATH and that all the wrappers are functional. Otherwise, a MPI
-        installation can be obtained from homebrew by *picking one* of the
-        following formulae:
-
-            open-mpi, mpich2
-        EOS
+    def yielder
+      if instance_variable_defined?(:@satisfied)
+        @satisfied
+      elsif @options[:build_env]
+        require 'superenv'
+        ENV.with_build_environment do
+          ENV.userpaths!
+          yield @proc
+        end
+      else
+        yield @proc
+      end
     end
   end
-
 end
 
-class ConflictRequirement < Requirement
-  attr_reader :formula
-
-  def initialize formula, message
-    @formula = formula
-    @message = message
-  end
-
-  def message; @message; end
-
-  def satisfied?
-    keg = Formula.factory(@formula).prefix
-    not keg.exist? && Keg.new(keg).linked?
-  end
-
-  def fatal?
-    not ARGV.force?
-  end
-end
+require 'requirements'

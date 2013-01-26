@@ -2,8 +2,8 @@ require 'formula'
 
 class JpegTurbo < Formula
   homepage 'http://www.libjpeg-turbo.org/'
-  url 'http://downloads.sourceforge.net/project/libjpeg-turbo/1.2.0/libjpeg-turbo-1.2.0.tar.gz'
-  sha1 '4ab00afc9a8d54cd2e7a67aacb9c49e01a8bccac'
+  url 'http://downloads.sourceforge.net/project/libjpeg-turbo/1.2.1/libjpeg-turbo-1.2.1.tar.gz'
+  sha1 'a4992e102c6d88146709e8e6ce5896d5d0b5a361'
 
   depends_on 'nasm' => :build if MacOS.prefer_64_bit?
 
@@ -23,10 +23,10 @@ class JpegTurbo < Formula
     system "make install"
   end
 
-  def test
-    mktemp do
-      system "#{bin}/jpegtran -crop 500x500+200+500 -transpose -perfect -outfile test.jpg /System/Library/CoreServices/DefaultDesktop.jpg"
-      system "/usr/bin/qlmanage", "-p", "test.jpg"
-    end
+  test do
+    system "#{bin}/jpegtran", "-crop", "500x500+200+500",
+                              "-transpose", "-perfect",
+                              "-outfile", "test.jpg",
+                              "/System/Library/CoreServices/DefaultDesktop.jpg"
   end
 end

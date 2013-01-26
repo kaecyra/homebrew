@@ -34,7 +34,7 @@ def llvm_build
 end
 
 def x11_installed?
-  MacOS::XQuartz.installed?
+  MacOS::X11.installed?
 end
 
 def macports_or_fink_installed?
@@ -75,6 +75,8 @@ class Formula
   # This used to be called in "def install", but should now be used
   # up in the DSL section.
   def fails_with_llvm msg=nil, data=nil
+    opoo "Calling fails_with_llvm in the install method is deprecated"
+    puts "Use the fails_with DSL instead."
     FailsWithLLVM.new(msg, data).handle_failure
   end
 
@@ -96,6 +98,21 @@ class Formula
     def bottle_sha1 val=nil
       val.nil? ? @bottle_sha1 : @bottle_sha1 = val
     end
+  end
+
+  # These methods return lists of Formula objects.
+  # They are eprecated in favor of Dependency::expand_dependencies
+  # and Formula#recursive_dependencies, which return lists of
+  # Dependency objects instead.
+  def self.expand_deps f
+    f.deps.map do |dep|
+      f_dep = Formula.factory dep.to_s
+      expand_deps(f_dep) << f_dep
+    end
+  end
+
+  def recursive_deps
+    Formula.expand_deps(self).flatten.uniq
   end
 end
 
@@ -165,6 +182,7 @@ class FailsWithLLVM
   end
 end
 
+# TODO eventually some of these should print deprecation warnings
 module MacOS extend self
   def xcode_folder
     Xcode.folder
@@ -191,10 +209,41 @@ module MacOS extend self
   end
 
   def x11_installed?
-    XQuartz.installed?
+    X11.installed?
   end
 
   def x11_prefix
-    XQuartz.prefix
+    X11.prefix
+  end
+
+  def leopard?
+    10.5 == MACOS_VERSION
+  end
+
+  def snow_leopard?
+    10.6 <= MACOS_VERSION # Actually Snow Leopard or newer
+  end
+  alias_method :snow_leopard_or_newer?, :snow_leopard?
+
+  def lion?
+    10.7 <= MACOS_VERSION # Actually Lion or newer
+  end
+  alias_method :lion_or_newer?, :lion?
+
+  def mountain_lion?
+    10.8 <= MACOS_VERSION # Actually Mountain Lion or newer
+  end
+  alias_method :mountain_lion_or_newer?, :mountain_lion?
+
+  def macports_or_fink_installed?
+    not MacOS.macports_or_fink.empty?
+  end
+end
+
+
+class Version
+  def slice *args
+    opoo "Calling slice on versions is deprecated, use: to_s.slice"
+    to_s.slice *args
   end
 end
