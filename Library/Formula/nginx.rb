@@ -18,7 +18,7 @@ class Nginx < Formula
   option 'with-webdav', 'Compile with support for WebDAV module'
   option 'with-debug', 'Compile with support for debug log'
   option 'with-status', 'Compile with support for HTTP Stub Status'
-
+  option 'with-more', 'Compile with support for HTTP Headers More'
   option 'with-spdy', 'Compile with support for SPDY module' if build.devel?
 
   skip_clean 'logs'
@@ -61,7 +61,8 @@ class Nginx < Formula
     args << "--with-http_dav_module" if build.include? 'with-webdav'
     args << "--with-debug" if build.include? 'with-debug'
     args << "--with-http_stub_status_module" if build.include? 'with-status'
-
+    args << "--add-module=#{HOMEBREW_PREFIX}/Cellar/nginxheadersmore/0.17" if build.include? 'with-more'
+    
     if build.devel?
       args << "--with-http_spdy_module" if build.include? 'with-spdy'
     end
