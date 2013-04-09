@@ -35,6 +35,17 @@ module Homebrew extend self
         next
       end
 
+      begin
+        f = Formula.factory(keg.fname)
+        if f.keg_only? and not ARGV.force?
+          opoo "#{keg.fname} is keg-only and must be linked with --force"
+          puts "Note that doing so can interfere with building software."
+          next
+        end
+      rescue
+        # Nothing to see here
+      end
+
       keg.lock do
         print "Linking #{keg}... " do
           puts "#{keg.link(mode)} symlinks created"
@@ -56,7 +67,7 @@ module Homebrew extend self
       end
     end
 
-    puts_capture.instance_eval &block
+    puts_capture.instance_eval(&block)
 
   ensure
     puts unless $did_puts

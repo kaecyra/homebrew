@@ -2,12 +2,12 @@ require 'formula'
 
 class Nginx < Formula
   homepage 'http://nginx.org/'
-  url 'http://nginx.org/download/nginx-1.2.6.tar.gz'
-  sha1 '432059b668e3f018eab61f99c7cc727db88464e8'
+  url 'http://nginx.org/download/nginx-1.2.8.tar.gz'
+  sha1 'b8c193d841538c3c443d262a2ab815a9ce1faaf6'
 
   devel do
-    url 'http://nginx.org/download/nginx-1.3.10.tar.gz'
-    sha1 '11cd44bc0479594fd2e5f7a65bf8f2c36ad5ec1e'
+    url 'http://nginx.org/download/nginx-1.3.15.tar.gz'
+    sha1 '16488c527078e26c32b0e467120501abf927fc8f'
   end
 
   env :userpaths
@@ -18,6 +18,8 @@ class Nginx < Formula
   option 'with-webdav', 'Compile with support for WebDAV module'
   option 'with-debug', 'Compile with support for debug log'
   option 'with-status', 'Compile with support for HTTP Stub Status'
+
+  option 'with-spdy', 'Compile with support for SPDY module' if build.devel?
 
   skip_clean 'logs'
 
@@ -60,6 +62,10 @@ class Nginx < Formula
     args << "--with-debug" if build.include? 'with-debug'
     args << "--with-http_stub_status_module" if build.include? 'with-status'
 
+    if build.devel?
+      args << "--with-http_spdy_module" if build.include? 'with-spdy'
+    end
+
     system "./configure", *args
     system "make"
     system "make install"
@@ -96,8 +102,6 @@ class Nginx < Formula
         <true/>
         <key>KeepAlive</key>
         <false/>
-        <key>UserName</key>
-        <string>#{`whoami`.chomp}</string>
         <key>ProgramArguments</key>
         <array>
             <string>#{opt_prefix}/sbin/nginx</string>
