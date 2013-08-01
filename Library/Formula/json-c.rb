@@ -9,7 +9,6 @@ class JsonC < Formula
   def install
     system "./configure", "--disable-dependency-tracking",
                           "--prefix=#{prefix}"
-
     ENV.deparallelize
     system "make install"
   end
