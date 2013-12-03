@@ -2,15 +2,15 @@ require 'formula'
 
 class Gettext < Formula
   homepage 'http://www.gnu.org/software/gettext/'
-  url 'http://ftpmirror.gnu.org/gettext/gettext-0.18.3.tar.gz'
-  mirror 'http://ftp.gnu.org/gnu/gettext/gettext-0.18.3.tar.gz'
-  sha256 '36f3c1043df803565d4977c1efbd41e1ec0f0301acf5f057984406c34cb9f948'
+  url 'http://ftpmirror.gnu.org/gettext/gettext-0.18.3.1.tar.gz'
+  mirror 'http://ftp.gnu.org/gnu/gettext/gettext-0.18.3.1.tar.gz'
+  sha256 '0d8f9a33531b77776b3dc473e7940019ca19bfca5b4c06db6e96065eeb07245d'
 
   bottle do
     revision 1
-    sha1 '392d49de19c44238cb3d25cc43ab5884c3558fe8' => :mountain_lion
-    sha1 '71b16d1305a221ea5ea15e1bb8d2819e4b62a045' => :lion
-    sha1 'bdfe4889e7da5e25f4cf7c42a4d591794afc4e43' => :snow_leopard
+    sha1 'b64f8e3cda313fa363769cb1f6ccd2cd872e3c90' => :mavericks
+    sha1 '90f266b4c4b9085ccfcfca381d22782f4291a950' => :mountain_lion
+    sha1 '3b28675e06ad3ce2b82913d70ae33330e2c06c5c' => :lion
   end
 
   keg_only "OS X provides the BSD gettext library and some software gets confused if both are in the library path."

@@ -2,13 +2,14 @@ require 'formula'
 
 class Transmission < Formula
   homepage 'http://www.transmissionbt.com/'
-  url 'http://download.transmissionbt.com/files/transmission-2.81.tar.xz'
-  sha1 '2ca458982054b4ad21bdbdb8cf085c96e5118e34'
+  url 'http://download.transmissionbt.com/files/transmission-2.82.tar.xz'
+  sha1 '1081542e2692147e45dde7c310b793abc4f33f2d'
 
   option 'with-nls', 'Build with native language support'
 
   depends_on 'xz' => :build
   depends_on 'pkg-config' => :build # So it will find system libcurl
+  depends_on 'curl' if MacOS.version <= :leopard
   depends_on 'libevent'
 
   if build.with? 'nls'

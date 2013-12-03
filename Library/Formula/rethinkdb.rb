@@ -2,11 +2,12 @@ require 'formula'
 
 class Rethinkdb < Formula
   homepage 'http://www.rethinkdb.com/'
-  url 'http://download.rethinkdb.com/dist/rethinkdb-1.7.3.tgz'
-  sha1 '81bfcb7fc88ef61d83f84bab5c25d1a92d8687c5'
+  url 'http://download.rethinkdb.com/dist/rethinkdb-1.11.0.tgz'
+  sha1 '9a56bc07b7ed431432ee2be61dc6aafa49fc3760'
 
   depends_on :macos => :lion
   depends_on 'boost' => :build
+  depends_on 'protobuf' if MacOS.version >= :mavericks
 
   fails_with :gcc do
     build 5666 # GCC 4.2.1
@@ -14,7 +15,9 @@ class Rethinkdb < Formula
   end
 
   def install
-    system "./configure", "--prefix=#{prefix}", "--fetch", "protobuf", "--fetch", "v8"
+    args = ["--prefix=#{prefix}", "--fetch", "v8"]
+    args += ["--fetch", "protobuf"] unless MacOS.version >= :mavericks
+    system "./configure", *args
     system "make"
     system "make install-osx"
   end

@@ -2,12 +2,12 @@ require 'formula'
 
 class Nginx < Formula
   homepage 'http://nginx.org/'
-  url 'http://nginx.org/download/nginx-1.4.2.tar.gz'
-  sha1 '8f006dc773840b6624a137a584ff8850d5155e3f'
+  url 'http://nginx.org/download/nginx-1.4.4.tar.gz'
+  sha1 '304d5991ccde398af2002c0da980ae240cea9356'
 
   devel do
-    url 'http://nginx.org/download/nginx-1.5.3.tar.gz'
-    sha1 '88f4548e46c25d32f08681c0aba39b86b84ec3a3'
+    url 'http://nginx.org/download/nginx-1.5.7.tar.gz'
+    sha1 '4dd04c73c3081277fe9c98c4a386c8baf956f5ca'
   end
 
   head 'http://hg.nginx.org/nginx/', :using => :hg
@@ -31,11 +31,6 @@ class Nginx < Formula
 
   skip_clean 'logs'
 
-  # Changes default port to 8080
-  def patches
-    DATA
-  end
-
   def passenger_config_args
     passenger_root = `passenger-config --root`.chomp
 
@@ -50,6 +45,9 @@ class Nginx < Formula
   end
 
   def install
+    # Changes default port to 8080
+    inreplace 'conf/nginx.conf', 'listen       80;', 'listen       8080;'
+
     cc_opt = "-I#{HOMEBREW_PREFIX}/include"
     ld_opt = "-L#{HOMEBREW_PREFIX}/lib"
 
@@ -124,10 +122,14 @@ class Nginx < Formula
     end
   end
 
+  test do
+    system "#{bin}/nginx", '-t'
+  end
+
   def passenger_caveats; <<-EOS.undent
 
     To activate Phusion Passenger, add this to #{etc}/nginx/nginx.conf:
-      passenger_root #{HOMEBREW_PREFIX}/opt/passenger
+      passenger_root #{HOMEBREW_PREFIX}/opt/passenger/libexec
       passenger_ruby /usr/bin/ruby
     EOS
   end
@@ -136,16 +138,14 @@ class Nginx < Formula
     s = <<-EOS.undent
     Docroot is: #{HOMEBREW_PREFIX}/var/www
 
-    The default port has been set to 8080 so that nginx can run without sudo.
-
-    If you want to host pages on your local machine to the wider network you
-    can change the port to 80 in: #{HOMEBREW_PREFIX}/etc/nginx/nginx.conf
-
-    You will then need to run nginx as root: `sudo nginx`.
+    The default port has been set in #{HOMEBREW_PREFIX}/etc/nginx/nginx.conf to 8080 so that
+    nginx can run without sudo.
     EOS
     s << passenger_caveats if build.include? 'with-passenger'
     s
   end
+
+  plist_options :manual => 'nginx'
 
   def plist; <<-EOS.undent
     <?xml version="1.0" encoding="UTF-8"?>
@@ -171,16 +171,3 @@ class Nginx < Formula
     EOS
   end
 end
-
-__END__
---- a/conf/nginx.conf
-+++ b/conf/nginx.conf
-@@ -33,7 +33,7 @@
-     #gzip  on;
-
-     server {
--        listen       80;
-+        listen       8080;
-         server_name  localhost;
-
-         #charset koi8-r;

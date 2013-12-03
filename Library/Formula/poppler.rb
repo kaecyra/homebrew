@@ -1,19 +1,15 @@
 require 'formula'
 
-class PopplerData < Formula
-  url 'http://poppler.freedesktop.org/poppler-data-0.4.6.tar.gz'
-  sha1 'f030563eed9f93912b1a546e6d87936d07d7f27d'
-end
-
 class Poppler < Formula
   homepage 'http://poppler.freedesktop.org'
-  url 'http://poppler.freedesktop.org/poppler-0.22.5.tar.gz'
-  sha1 '9491bb33788d7f0ee67da572dc4798004f98323a'
+  url 'http://poppler.freedesktop.org/poppler-0.24.4.tar.xz'
+  sha1 '7938c92c61b63331f2af463db0d10048bf0d4712'
 
   option 'with-qt4', 'Build Qt backend'
   option 'with-glib', 'Build Glib backend'
 
   depends_on 'pkg-config' => :build
+  depends_on 'xz' => :build
 
   depends_on :fontconfig
   depends_on 'openjpeg'
@@ -21,6 +17,16 @@ class Poppler < Formula
   depends_on 'qt' if build.with? 'qt4'
   depends_on 'glib' => :optional
   depends_on 'cairo' if build.with? 'glib' # Needs a newer Cairo build than OS X 10.6.7 provides
+
+  conflicts_with 'pdftohtml', :beacuse => 'both install `pdftohtml` binaries'
+
+  conflicts_with 'pdf2image', 'xpdf',
+    :because => 'poppler, pdf2image, and xpdf install conflicting executables'
+
+  resource 'font-data' do
+    url 'http://poppler.freedesktop.org/poppler-data-0.4.6.tar.gz'
+    sha1 'f030563eed9f93912b1a546e6d87936d07d7f27d'
+  end
 
   def install
     if build.with? 'qt4'
@@ -40,10 +46,6 @@ class Poppler < Formula
 
     system "./configure", *args
     system "make install"
-
-    # Install poppler font data.
-    PopplerData.new.brew do
-      system "make", "install", "prefix=#{prefix}"
-    end
+    resource('font-data').stage { system "make", "install", "prefix=#{prefix}" }
   end
 end
