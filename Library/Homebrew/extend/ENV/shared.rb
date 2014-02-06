@@ -57,6 +57,12 @@ module SharedEnvExtension
     prepend key, path, File::PATH_SEPARATOR if File.directory? path
   end
 
+  def prepend_create_path key, path
+    path = Pathname.new(path) unless path.is_a? Pathname
+    path.mkpath
+    prepend_path key, path
+  end
+
   def remove keys, value
     Array(keys).each do |key|
       next unless self[key]
@@ -116,11 +122,7 @@ module SharedEnvExtension
   # If no valid compiler is found, raises an exception.
   def validate_cc!(formula)
     if formula.fails_with? ENV.compiler
-      begin
-        send CompilerSelector.new(formula).compiler
-      rescue CompilerSelectionError => e
-        raise e.message
-      end
+      send CompilerSelector.new(formula).compiler
     end
   end
 
@@ -159,11 +161,17 @@ module SharedEnvExtension
         EOS
       end
 
-    elsif (gfortran = which('gfortran', ORIGINAL_PATHS.join(File::PATH_SEPARATOR)))
-      ohai "Using Homebrew-provided fortran compiler."
-      puts "This may be changed by setting the FC environment variable."
-      self['FC'] = self['F77'] = gfortran
-      flags = FC_FLAG_VARS
+    else
+      if (gfortran = which('gfortran', (HOMEBREW_PREFIX/'bin').to_s))
+        ohai "Using Homebrew-provided fortran compiler."
+      elsif (gfortran = which('gfortran', ORIGINAL_PATHS.join(File::PATH_SEPARATOR)))
+        ohai "Using a fortran compiler found at #{gfortran}."
+      end
+      if gfortran
+        puts "This may be changed by setting the FC environment variable."
+        self['FC'] = self['F77'] = gfortran
+        flags = FC_FLAG_VARS
+      end
     end
 
     flags.each { |key| self[key] = cflags }

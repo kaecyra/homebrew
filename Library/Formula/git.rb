@@ -2,14 +2,14 @@ require 'formula'
 
 class Git < Formula
   homepage 'http://git-scm.com'
-  url 'https://git-core.googlecode.com/files/git-1.8.5.tar.gz'
-  sha1 '56e4e3c59b0bd2996b81bb1de4283c9f427bd1a8'
+  url 'https://git-core.googlecode.com/files/git-1.8.5.3.tar.gz'
+  sha1 '767aa30c0f569f9b6e04cb215dfeec0c013c355a'
   head 'https://github.com/git/git.git'
 
   bottle do
-    sha1 'd38dbb1a4c518ed8597ecadb8a9b5125c13d0121' => :mavericks
-    sha1 'd0741b27a9c5e5e9f8bfcc9c2e048da873aaf593' => :mountain_lion
-    sha1 '1a8b70552ca5215d57125a9d1276d234fcac3c28' => :lion
+    sha1 '6849cffc6d286228cdfb2fa52f2b0db4c054f569' => :mavericks
+    sha1 'd2e8b603141f45d5a22891909b1c076e4cb1a5d6' => :mountain_lion
+    sha1 '40b475da5b25459b697ac8815dd575a0e1653abd' => :lion
   end
 
   option 'with-blk-sha1', 'Compile with the block-optimized SHA1 implementation'
@@ -18,25 +18,24 @@ class Git < Formula
   option 'with-brewed-curl', "Use Homebrew's version of cURL library"
   option 'with-persistent-https', 'Build git-remote-persistent-https from "contrib" directory'
 
-  depends_on :python
   depends_on 'pcre' => :optional
   depends_on 'gettext' => :optional
   depends_on 'openssl' if build.with? 'brewed-openssl'
-  depends_on 'curl' => 'with-darwinssl' if build.with? 'brewed-curl'
+  depends_on 'curl' if build.with? 'brewed-curl'
   depends_on 'go' => :build if build.with? 'persistent-https'
 
   resource 'man' do
-    url 'http://git-core.googlecode.com/files/git-manpages-1.8.5.tar.gz'
-    sha1 '880864f95e3548e1f86066653aed3311caea89a4'
+    url 'http://git-core.googlecode.com/files/git-manpages-1.8.5.3.tar.gz'
+    sha1 'e4b66ca3ab1b089af651bf742aa030718e9af978'
   end
 
   resource 'html' do
-    url 'http://git-core.googlecode.com/files/git-htmldocs-1.8.5.tar.gz'
-    sha1 '3901432173bcc3892a7be8ea2637a7d763015013'
+    url 'http://git-core.googlecode.com/files/git-htmldocs-1.8.5.3.tar.gz'
+    sha1 '47da8e2b1d23ae501ee2c03414c04f8225079037'
   end
 
   def patches
-    if MacOS.version >= :mavericks
+    if MacOS.version >= :mavericks and not build.head?
       # Allow using PERLLIB_EXTRA to find Subversion Perl bindings location
       # in the CLT/Xcode. Should be included in Git 1.8.6.
       # https://git.kernel.org/cgit/git/git.git/commit/?h=next&id=07981d
@@ -52,7 +51,7 @@ class Git < Formula
     ENV['NO_DARWIN_PORTS'] = '1'
     ENV['V'] = '1' # build verbosely
     ENV['NO_R_TO_GCC_LINKER'] = '1' # pass arguments to LD correctly
-    ENV['PYTHON_PATH'] = python.binary if python
+    ENV['PYTHON_PATH'] = which 'python'
     ENV['PERL_PATH'] = which 'perl'
 
     if MacOS.version >= :mavericks and MacOS.dev_tools_prefix
@@ -78,6 +77,8 @@ class Git < Formula
                    "CFLAGS=#{ENV.cflags}",
                    "LDFLAGS=#{ENV.ldflags}",
                    "install"
+
+    bin.install Dir["contrib/remote-helpers/git-remote-{hg,bzr}"]
 
     # Install the OS X keychain credential helper
     cd 'contrib/credential/osxkeychain' do
