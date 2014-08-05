@@ -1,12 +1,13 @@
-require 'formula'
+require "formula"
 
 class Dovecot < Formula
-  homepage 'http://dovecot.org/'
-  url 'http://dovecot.org/releases/2.2/dovecot-2.2.10.tar.gz'
-  mirror 'http://fossies.org/linux/misc/dovecot-2.2.10.tar.gz'
-  sha256 '75592483d40dc4f76cc3b41af40caa4be80478946a699d46846d5d03e4d2e09b'
+  homepage "http://dovecot.org/"
+  url "http://dovecot.org/releases/2.2/dovecot-2.2.13.tar.gz"
+  mirror "http://fossies.org/linux/misc/dovecot-2.2.13.tar.gz"
+  sha1 "ee8efc77cb9d502dc416ae4fba242adc5f01c163"
 
-  depends_on 'clucene' => :optional
+  depends_on "clucene" => :optional
+  depends_on "openssl"
 
   def install
     args = %W[--prefix=#{prefix}
